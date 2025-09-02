@@ -1,29 +1,39 @@
-name: Build Manus Agent APK
+name: Build Manus Agent APK (Absolute Solution)
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    # لقد غيرنا بيئة التشغيل إلى macOS، والتي لديها دعم أفضل لأدوات أندرويد
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    # 1. تنزيل الكود الخاص بك
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      # لا حاجة لـ setup-java، لأننا سنستخدم Java المثبتة مسبقًا على macOS
-      
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
+    # 2. إعداد بيئة Java
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Build with Gradle
-        # سنقوم بتشغيل البناء مباشرة. بيئة macOS أكثر استقرارًا لهذا الغرض
-        run: ./gradlew assembleDebug
+    # 3. تثبيت إصدار Gradle الصحيح والمحدد
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: '8.6'
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: manus-agent-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+    # 4. بناء التطبيق
+    - name: Build with Gradle
+      run: gradle assembleDebug
+
+    # 5. رفع ملف APK
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: manus-agent-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
