@@ -1,100 +1,195 @@
 package com.manus.agent
 
-import android.view.accessibility.AccessibilityNodeInfo
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Toast
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
+import android.view.accessibility.AccessibilityNodeInfo
+import ai.onnxruntime.OnnxRuntime
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+import ai.onnxruntime.OrtSession.SessionOptions
 import java.io.File
 
 class ManusAccessibilityService : AccessibilityService() {
 
-    private val job = SupervisorJob()
-    private val scope = CoroutineScope(Dispatchers.IO + job)
-    private var currentTask: String? = null
+    private val TAG = "ManusAccessibilityService"
+
+    private var ortEnv: OrtEnvironment? = null
+    private var ortSession: OrtSession? = null
+    private var modelInitialized = false
 
     companion object {
-        // إعادة تعريف كل الثوابت (Constants) هنا
-        const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.SERVICE_STATE_CHANGED"
+        const val ACTION_COMMAND = "com.manus.agent.ACTION_COMMAND"
+        const val EXTRA_COMMAND_TEXT = "EXTRA_COMMAND_TEXT"
+
+        const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.ACTION_SERVICE_STATE_CHANGED"
         const val EXTRA_STATE = "EXTRA_STATE"
         const val EXTRA_MESSAGE = "EXTRA_MESSAGE"
-        const val STATE_CONNECTED = "CONNECTED"
-        const val STATE_DISCONNECTED = "DISCONNECTED"
-        const val STATE_MODEL_LOAD_FAIL = "MODEL_LOAD_FAIL"
-        const val STATE_MODEL_LOAD_SUCCESS = "STATE_MODEL_LOAD_SUCCESS"
-        const val ACTION_COMMAND = "com.manus.agent.COMMAND"
-        const val EXTRA_COMMAND_TEXT = "EXTRA_COMMAND_TEXT"
+
+        private const val MODEL_FILE = "phi3.onnx" // expected filename copied into filesDir
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        broadcastState(STATE_CONNECTED)
-        Toast.makeText(this, "Manus Agent Service: CONNECTED", Toast.LENGTH_SHORT).show()
+        Log.d(TAG, "Service connected")
+        sendStateBroadcast("connected", "Accessibility service connected.")
+        initializeOrtIfPossible()
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // not used for now; could listen for window changes if needed
+    }
+
+    override fun onInterrupt() {
+        Log.d(TAG, "Service interrupted")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_COMMAND) {
-            currentTask = intent.getStringExtra(EXTRA_COMMAND_TEXT)
-            Toast.makeText(this, "New task: $currentTask", Toast.LENGTH_SHORT).show()
-            val rootNode = rootInActiveWindow
-            if (rootNode != null) {
-                val screenContent = captureScreenContent(rootNode)
-                Log.d("ManusService", "Current screen:\n$screenContent")
-                rootNode.recycle()
+        try {
+            if (intent?.action == ACTION_COMMAND) {
+                val cmd = intent.getStringExtra(EXTRA_COMMAND_TEXT) ?: ""
+                Log.d(TAG, "Received command: $cmd")
+                // handle command asynchronously to avoid blocking; here we keep it simple
+                handleCommand(cmd)
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "onStartCommand error", e)
+            sendStateBroadcast("error", "Failed to handle command: ${e.message}")
         }
         return super.onStartCommand(intent, flags, startId)
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Logic for handling accessibility events
-    }
+    private fun initializeOrtIfPossible() {
+        if (modelInitialized) return
+        try {
+            val modelFile = File(filesDir, MODEL_FILE)
+            if (!modelFile.exists()) {
+                Log.w(TAG, "ONNX model not found at ${modelFile.absolutePath}")
+                sendStateBroadcast("model_missing", "Model file not found.")
+                return
+            }
 
-    private fun captureScreenContent(node: AccessibilityNodeInfo?): String {
-        if (node == null) return ""
-        val builder = StringBuilder()
-        traverseNode(node, builder)
-        return builder.toString()
-    }
-
-    private fun traverseNode(node: AccessibilityNodeInfo, builder: StringBuilder) {
-        val text: String? = node.text?.toString()?.trim()
-        val contentDesc: String? = node.contentDescription?.toString()?.trim()
-
-        if (!text.isNullOrEmpty()) {
-            builder.append(text).append("\n")
-        } else if (!contentDesc.isNullOrEmpty()) {
-            builder.append(contentDesc).append("\n")
+            ortEnv = OrtEnvironment.getEnvironment()
+            val options = SessionOptions()
+            ortSession = ortEnv?.createSession(modelFile.absolutePath, options)
+            modelInitialized = ortSession != null
+            sendStateBroadcast("model_ready", if (modelInitialized) "ONNX model loaded." else "Failed to init model.")
+            Log.d(TAG, "ONNX init success: $modelInitialized")
+        } catch (t: Throwable) {
+            Log.e(TAG, "Failed to init ONNX", t)
+            sendStateBroadcast("model_error", "ONNX init error: ${t.message}")
         }
+    }
 
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i)
-            if (child != null) {
-                traverseNode(child, builder)
-                child.recycle()
+    private fun handleCommand(command: String) {
+        // Simple flow:
+        // 1. try to interpret simple actions without model (heuristic)
+        // 2. if model available, (future) run prompt->model to get structured action
+        // For now implement robust heuristic click-by-text + broadcast status
+
+        // quick heuristics
+        val lc = command.trim().lowercase()
+        when {
+            lc.startsWith("click ") -> {
+                val target = command.removePrefix("click ").trim()
+                val success = clickNodeByText(target)
+                sendStateBroadcast("action", if (success) "Clicked: $target" else "Could not find: $target")
+            }
+            lc.startsWith("press ") -> {
+                val target = command.removePrefix("press ").trim()
+                val success = clickNodeByText(target)
+                sendStateBroadcast("action", if (success) "Pressed: $target" else "Could not find: $target")
+            }
+            lc.startsWith("back") -> {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                sendStateBroadcast("action", "Performed BACK")
+            }
+            else -> {
+                // If ONNX is initialized in future, call it here.
+                if (!modelInitialized) {
+                    sendStateBroadcast("unhandled", "No model: could not interpret command.")
+                } else {
+                    // placeholder for model-based parsing (not implemented fully)
+                    sendStateBroadcast("unhandled", "Model available but model-inference path not implemented.")
+                }
             }
         }
     }
 
-    override fun onInterrupt() {}
-
-    override fun onUnbind(intent: Intent?): Boolean {
-        broadcastState(STATE_DISCONNECTED)
-        Toast.makeText(this, "Manus Agent Service: DISCONNECTED", Toast.LENGTH_SHORT).show()
-        job.cancel()
-        return super.onUnbind(intent)
+    private fun clickNodeByText(text: String): Boolean {
+        try {
+            val root = rootInActiveWindow ?: return false
+            val found = findNodeByText(root, text)
+            if (found != null) {
+                // prefer performAction on clickable ancestor
+                var node: AccessibilityNodeInfo? = found
+                while (node != null) {
+                    if (node.isClickable) {
+                        val performed = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        Log.d(TAG, "performAction click result: $performed for text=$text")
+                        return performed
+                    }
+                    node = node.parent
+                }
+                // fallback: try to click found node
+                return found.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "clickNodeByText error", t)
+        }
+        return false
     }
 
-    private fun broadcastState(state: String, message: String? = null) {
-        val intent = Intent(ACTION_SERVICE_STATE_CHANGED).apply {
-            putExtra(EXTRA_STATE, state)
-            message?.let { putExtra(EXTRA_MESSAGE, it) }
+    private fun findNodeByText(node: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        val q = text.trim()
+        // breadth-first search
+        val queue = ArrayDeque<AccessibilityNodeInfo>()
+        queue.add(node)
+        while (queue.isNotEmpty()) {
+            val n = queue.removeFirst()
+            try {
+                val nodeText = n.text?.toString()
+                val desc = n.contentDescription?.toString()
+                if (!nodeText.isNullOrBlank() && nodeText.equals(q, ignoreCase = true)) return n
+                if (!desc.isNullOrBlank() && desc.equals(q, ignoreCase = true)) return n
+                // also contains match
+                if (!nodeText.isNullOrBlank() && nodeText.contains(q, ignoreCase = true)) return n
+                if (!desc.isNullOrBlank() && desc.contains(q, ignoreCase = true)) return n
+                for (i in 0 until n.childCount) {
+                    val child = n.getChild(i)
+                    if (child != null) {
+                        queue.add(child)
+                    }
+                }
+            } catch (e: Exception) {
+                // ignore per-node errors
+            }
         }
-        sendBroadcast(intent)
+        return null
+    }
+
+    private fun sendStateBroadcast(state: String, message: String) {
+        try {
+            val intent = Intent(ACTION_SERVICE_STATE_CHANGED)
+            intent.putExtra(EXTRA_STATE, state)
+            intent.putExtra(EXTRA_MESSAGE, message)
+            sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "sendStateBroadcast failed", e)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            ortSession?.close()
+        } catch (_: Exception) { }
+        try {
+            ortEnv?.close()
+        } catch (_: Exception) { }
+        ortSession = null
+        ortEnv = null
+        modelInitialized = false
     }
 }
