@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-    # استخدام ubuntu-latest كما هو موصى به
     runs-on: ubuntu-latest
 
     steps:
@@ -17,22 +16,21 @@ jobs:
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
         distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
 
-    # إضافة خطوة إعداد Android SDK الحاسمة لضمان بيئة بناء سليمة
     - name: Set up Android SDK
       uses: android-actions/setup-android@v3
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # استخدام أمر بناء قياسي ونظيف
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
+    - name: Build (clean assembleDebug)
+      run: ./gradlew clean assembleDebug --no-daemon --stacktrace
 
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: manus-agent-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: app/build/outputs/apk/debug/*.apk
