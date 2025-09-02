@@ -21,9 +21,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # *** الإصلاح الحاسم هنا ***
-    # 3. إنشاء ملف local.properties وتحديد مسار الـ SDK
-    #    هذا يخبر المشروع بمكان العثور على كلاسات أندرويد الأساسية.
+    # *** الإصلاح الحاسم هنا: تنظيف ذاكرة التخزين المؤقت لـ Gradle ***
+    # هذه الخطوة تجبر Gradle على تنزيل كل شيء من جديد، متجاهلاً أي ملفات تالفة.
+    - name: Clean Gradle Cache
+      run: |
+        rm -rf $HOME/.gradle/caches/
+        rm -rf $HOME/.gradle/wrapper/
+        echo "Gradle cache cleaned"
+
+    # 3. إنشاء ملف local.properties (للتأكيد)
     - name: Create local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
@@ -31,9 +37,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # 5. بناء التطبيق
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
+    # 5. بناء التطبيق مع خيارات التنظيف
+    - name: Build with Gradle (with clean)
+      run: ./gradlew clean build --no-cache --refresh-dependencies
 
     # 6. رفع ملف APK
     - name: Upload APK
