@@ -12,19 +12,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      # لا حاجة لـ setup-java، لأن action البناء سيتولى الأمر
+      # - name: Set up JDK 17
+      #   uses: actions/setup-java@v4
+      #   with:
+      #     java-version: '17'
+      #     distribution: 'temurin'
+
+      - name: Build with Gradle Wrapper
+        uses: gradle/actions/setup-gradle@v3 # هذا هو الـ Action الجديد والموثوق
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          # لقد قمنا بإزالة خيار التخزين المؤقت الذي يسبب المشكلة
-          # cache: 'gradle' 
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x ./gradlew
-
-      - name: Build with Gradle
-        run: ./gradlew app:assembleDebug # مسار أكثر تحديدًا للمهمة
+          arguments: assembleDebug # نمرر له المهمة التي نريد تشغيلها
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
