@@ -1,7 +1,10 @@
 package com.manus.agent
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -30,18 +33,24 @@ class MainActivity : ComponentActivity() {
     private var uiState by mutableStateOf(UiState())
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-                copyModelFiles()
-            } else {
-                uiState = uiState.copy(statusMessage = "Permission denied. Cannot copy models.")
-            }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) { copyModelFiles() } 
+            else { uiState = uiState.copy(statusMessage = "Permission denied. Cannot copy models.") }
         }
 
     private val openSettingsLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            checkPermissionsAndServiceStatus()
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { checkPermissionsAndServiceStatus() }
+
+    private val serviceStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.let {
+                val state = it.getStringExtra(ManusAccessibilityService.EXTRA_STATE)
+                val message = it.getStringExtra(ManusAccessibilityService.EXTRA_MESSAGE)
+                Log.d("MainActivity", "Received state: $state, Message: $message")
+                uiState = uiState.copy(statusMessage = message ?: state ?: "Unknown State")
+            }
         }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,7 +67,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED), RECEIVER_NOT_EXPORTED)
         checkPermissionsAndServiceStatus()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        unregisterReceiver(serviceStateReceiver)
     }
 
     private fun checkPermissionsAndServiceStatus() {
@@ -66,15 +81,22 @@ class MainActivity : ComponentActivity() {
         val isServiceEnabled = isAccessibilityServiceEnabled()
         val modelsCopied = areModelsCopied()
 
+        val newState = uiState.copy(
+            hasStoragePermission = hasPermission,
+            isAccessibilityServiceEnabled = isServiceEnabled,
+            areModelsCopied = modelsCopied
+        )
+        
         uiState = if (!hasPermission) {
-            uiState.copy(statusMessage = "Storage permission needed to copy AI models.")
+            newState.copy(statusMessage = "Storage permission needed to copy AI models.")
         } else if (!modelsCopied) {
-            uiState.copy(statusMessage = "Copying AI models...")
+            newState.copy(statusMessage = "Copying AI models...")
             copyModelFiles()
+            newState
         } else if (!isServiceEnabled) {
-            uiState.copy(statusMessage = "Accessibility Service is not enabled.")
+            newState.copy(statusMessage = "Accessibility Service is not enabled.")
         } else {
-            uiState.copy(statusMessage = "Ready to receive commands.")
+            newState.copy(statusMessage = "Ready to receive commands.")
         }
     }
 
@@ -82,10 +104,7 @@ class MainActivity : ComponentActivity() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             Environment.isExternalStorageManager()
         } else {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
         }
     }
 
@@ -107,10 +126,7 @@ class MainActivity : ComponentActivity() {
 
     private fun isAccessibilityServiceEnabled(): Boolean {
         val service = "$packageName/${ManusAccessibilityService::class.java.canonicalName}"
-        val enabledServices = Settings.Secure.getString(
-            contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        )
+        val enabledServices = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         return enabledServices?.contains(service) == true
     }
 
@@ -147,11 +163,14 @@ class MainActivity : ComponentActivity() {
                         val sourceFile = File(downloadDir, modelName)
                         val destFile = File(filesDir, modelName)
                         if (!destFile.exists() || destFile.length() != sourceFile.length()) {
+                            Log.d("FileCopy", "Copying ${sourceFile.absolutePath} to ${destFile.absolutePath}")
                             sourceFile.inputStream().use { input ->
                                 FileOutputStream(destFile).use { output ->
                                     input.copyTo(output)
                                 }
                             }
+                        } else {
+                            Log.d("FileCopy", "File ${destFile.name} already exists. Skipping.")
                         }
                     }
                 } catch (e: Exception) {
@@ -182,18 +201,12 @@ data class UiState(
 )
 
 @Composable
-fun MainScreen(
-    uiState: UiState,
-    onGrantPermissionClick: () -> Unit,
-    onEnableServiceClick: () -> Unit
-) {
+fun MainScreen(uiState: UiState, onGrantPermissionClick: () -> Unit, onEnableServiceClick: () -> Unit) {
     val context = LocalContext.current
     var commandText by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -203,16 +216,12 @@ fun MainScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         if (!uiState.hasStoragePermission) {
-            Button(onClick = onGrantPermissionClick) {
-                Text("1. Grant File Permission")
-            }
+            Button(onClick = onGrantPermissionClick) { Text("1. Grant File Permission") }
         } else if (!uiState.areModelsCopied) {
             CircularProgressIndicator()
             Text("Copying models...")
         } else if (!uiState.isAccessibilityServiceEnabled) {
-            Button(onClick = onEnableServiceClick) {
-                Text("2. Enable Accessibility Service")
-            }
+            Button(onClick = onEnableServiceClick) { Text("2. Enable Accessibility Service") }
         } else {
             OutlinedTextField(
                 value = commandText,
@@ -228,9 +237,7 @@ fun MainScreen(
                 }
                 context.startService(intent)
                 Toast.makeText(context, "Command sent!", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("Start Task")
-            }
+            }) { Text("Start Task") }
         }
     }
 }
