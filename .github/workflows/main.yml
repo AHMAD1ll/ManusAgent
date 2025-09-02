@@ -1,4 +1,4 @@
-name: Build Manus Agent APK
+name: Build Manus Agent APK with Docker
 
 on:
   push:
@@ -12,18 +12,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - name: Build APK using a dedicated Android Docker image
+        uses: reactivecircus/android-emulator-runner@v2
         with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # هذه هي الخطوة الحاسمة التي تصلح المشكلة
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Build with Gradle
-        run: ./gradlew assembleDebug # سنستخدم الأمر المباشر الذي نعرف أنه يعمل
+          api-level: 33 # يمكن تغيير هذا الرقم، لكن 33 هو خيار جيد
+          script: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
