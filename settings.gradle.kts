@@ -1,3 +1,4 @@
+// This block tells Gradle where to find the build plugins
 pluginManagement {
     repositories {
         google()
@@ -5,6 +6,8 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+
+// This block tells Gradle where to find the app's library dependencies
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
