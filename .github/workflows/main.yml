@@ -3,8 +3,6 @@ name: Build Manus Agent APK
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
   build:
@@ -19,13 +17,14 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
+          # لقد قمنا بإزالة خيار التخزين المؤقت الذي يسبب المشكلة
+          # cache: 'gradle' 
 
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: chmod +x ./gradlew
 
       - name: Build with Gradle
-        run: ./gradlew assembleDebug
+        run: ./gradlew app:assembleDebug # مسار أكثر تحديدًا للمهمة
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
