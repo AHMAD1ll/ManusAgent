@@ -10,26 +10,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # 1. تنزيل الكود الخاص بك (مع الـ Wrapper السليم)
+    # 1. تنزيل الكود
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. إعداد بيئة Java بالطريقة الأكثر استقرارًا
+    # 2. إعداد بيئة Java
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        # *** الإصلاح هنا: نستخدم 'zulu' بدلاً من 'temurin' ***
-        # 'zulu' هي توزيعة موثوقة جدًا ومدعومة دائمًا في GitHub Actions.
         distribution: 'zulu'
+        # *** الإصلاح الحاسم هنا: تعطيل ذاكرة التخزين المؤقت ***
+        cache: 'gradle'
 
-    # 3. إعطاء إذن التنفيذ لـ gradlew (خطوة أمان ضرورية)
+    # 3. إعطاء إذن التنفيذ لـ gradlew
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # 4. بناء التطبيق
+    # 4. بناء التطبيق مع تنظيف كامل
     - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      run: ./gradlew clean assembleDebug
 
     # 5. رفع ملف APK
     - name: Upload APK
