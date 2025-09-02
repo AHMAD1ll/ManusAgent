@@ -32,6 +32,7 @@ class ManusAccessibilityService : AccessibilityService() {
         const val STATE_MODEL_LOAD_SUCCESS = "STATE_MODEL_LOAD_SUCCESS"
         const val ACTION_COMMAND = "com.manus.agent.COMMAND"
         const val EXTRA_COMMAND_TEXT = "EXTRA_COMMAND_TEXT"
+        const val EXTRA_MESSAGE = "EXTRA_MESSAGE"
     }
 
     override fun onServiceConnected() {
@@ -72,13 +73,17 @@ class ManusAccessibilityService : AccessibilityService() {
     }
 
     private fun traverseNode(node: AccessibilityNodeInfo, builder: StringBuilder) {
-        val text = node.text?.toString()?.trim()
-        val contentDesc = node.contentDescription?.toString()?.trim()
+        // *** الإصلاح الأول هنا ***
+        // تحويل النص إلى String بشكل صريح قبل إضافته
+        val text: String? = node.text?.toString()?.trim()
+        val contentDesc: String? = node.contentDescription?.toString()?.trim()
+
         if (!text.isNullOrEmpty()) {
             builder.append(text).append("\n")
         } else if (!contentDesc.isNullOrEmpty()) {
             builder.append(contentDesc).append("\n")
         }
+
         for (i in 0 until node.childCount) {
             val child = node.getChild(i)
             if (child != null) {
@@ -117,7 +122,7 @@ class ManusAccessibilityService : AccessibilityService() {
     private fun broadcastState(state: String, message: String? = null) {
         val intent = Intent(ACTION_SERVICE_STATE_CHANGED).apply {
             putExtra(EXTRA_STATE, state)
-            message?.let { putExtra("EXTRA_MESSAGE", it) }
+            message?.let { putExtra(EXTRA_MESSAGE, it) }
         }
         sendBroadcast(intent)
     }
