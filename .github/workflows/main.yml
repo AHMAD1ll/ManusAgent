@@ -1,4 +1,4 @@
-name: Build Manus Agent APK with Docker
+name: Build Manus Agent APK
 
 on:
   push:
@@ -6,18 +6,21 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # لقد غيرنا بيئة التشغيل إلى macOS، والتي لديها دعم أفضل لأدوات أندرويد
+    runs-on: macos-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build APK using a dedicated Android Docker image
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          target: google_apis  # هذا هو التغيير الحاسم الذي يحل المشكلة
-          script: ./gradlew assembleDebug
+      # لا حاجة لـ setup-java، لأننا سنستخدم Java المثبتة مسبقًا على macOS
+      
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        # سنقوم بتشغيل البناء مباشرة. بيئة macOS أكثر استقرارًا لهذا الغرض
+        run: ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
