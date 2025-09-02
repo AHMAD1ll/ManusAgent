@@ -14,12 +14,18 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {
@@ -33,7 +39,9 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        // *** هذا هو الإصلاح ***
+        // تم تحديث الإصدار ليتوافق مع Kotlin 1.9.23
+        kotlinCompilerExtensionVersion = "1.5.11" 
     }
     packaging {
         resources {
@@ -43,11 +51,9 @@ android {
 }
 
 dependencies {
-    // *** الإصلاح الأول هنا: إضافة التبعيات الأساسية التي قد تكون مفقودة ***
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
-
-    // تبعيات Compose
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
     implementation("androidx.activity:activity-compose:1.9.0")
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
@@ -55,10 +61,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    // تبعيات أخرى
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
 
-    // تبعيات الاختبار (لا تؤثر على البناء ولكن من الجيد إبقاؤها)
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
