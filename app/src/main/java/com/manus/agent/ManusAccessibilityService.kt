@@ -1,6 +1,6 @@
 package com.manus.agent
 
-import android.view.accessibility.AccessibilityNodeInfo // <-- هذا هو السطر الصحيح
+import android.view.accessibility.AccessibilityNodeInfo
 import android.accessibilityservice.AccessibilityService
 import android.content.Intent
 import android.util.Log
@@ -19,12 +19,21 @@ class ManusAccessibilityService : AccessibilityService() {
     private var currentTask: String? = null
 
     companion object {
+        // إعادة تعريف كل الثوابت (Constants) هنا
+        const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.SERVICE_STATE_CHANGED"
+        const val EXTRA_STATE = "EXTRA_STATE"
+        const val EXTRA_MESSAGE = "EXTRA_MESSAGE"
+        const val STATE_CONNECTED = "CONNECTED"
+        const val STATE_DISCONNECTED = "DISCONNECTED"
+        const val STATE_MODEL_LOAD_FAIL = "MODEL_LOAD_FAIL"
+        const val STATE_MODEL_LOAD_SUCCESS = "STATE_MODEL_LOAD_SUCCESS"
         const val ACTION_COMMAND = "com.manus.agent.COMMAND"
         const val EXTRA_COMMAND_TEXT = "EXTRA_COMMAND_TEXT"
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        broadcastState(STATE_CONNECTED)
         Toast.makeText(this, "Manus Agent Service: CONNECTED", Toast.LENGTH_SHORT).show()
     }
 
@@ -75,8 +84,17 @@ class ManusAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
+        broadcastState(STATE_DISCONNECTED)
         Toast.makeText(this, "Manus Agent Service: DISCONNECTED", Toast.LENGTH_SHORT).show()
         job.cancel()
         return super.onUnbind(intent)
+    }
+
+    private fun broadcastState(state: String, message: String? = null) {
+        val intent = Intent(ACTION_SERVICE_STATE_CHANGED).apply {
+            putExtra(EXTRA_STATE, state)
+            message?.let { putExtra(EXTRA_MESSAGE, it) }
+        }
+        sendBroadcast(intent)
     }
 }
