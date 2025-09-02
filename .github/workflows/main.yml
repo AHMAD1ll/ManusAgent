@@ -21,27 +21,17 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # *** الإصلاح الحاسم هنا: تنظيف ذاكرة التخزين المؤقت لـ Gradle ***
-    # هذه الخطوة تجبر Gradle على تنزيل كل شيء من جديد، متجاهلاً أي ملفات تالفة.
-    - name: Clean Gradle Cache
-      run: |
-        rm -rf $HOME/.gradle/caches/
-        rm -rf $HOME/.gradle/wrapper/
-        echo "Gradle cache cleaned"
-
-    # 3. إنشاء ملف local.properties (للتأكيد)
-    - name: Create local.properties
-      run: echo "sdk.dir=$ANDROID_HOME" > local.properties
-
-    # 4. إعطاء إذن التنفيذ لـ gradlew
+    # 3. إعطاء إذن التنفيذ لـ gradlew
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # 5. بناء التطبيق مع خيارات التنظيف
-    - name: Build with Gradle (with clean)
-      run: ./gradlew clean build --no-cache --refresh-dependencies
+    # *** الإصلاح الحاسم هنا: استخدام الأمر الصحيح للبناء النظيف ***
+    # --rerun-tasks: يجبر Gradle على إعادة تشغيل جميع المهام.
+    # --refresh-dependencies: يجبر Gradle على إعادة تنزيل جميع المكتبات.
+    - name: Build with Gradle (Force Clean Build)
+      run: ./gradlew clean build --rerun-tasks --refresh-dependencies
 
-    # 6. رفع ملف APK
+    # 5. رفع ملف APK
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
