@@ -1,64 +1,65 @@
 package com.manus.agent
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.AccessibilityServiceInfo
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Toast
 import com.microsoft.onnxruntime.*
 
 class ManusAccessibilityService : AccessibilityService() {
 
     companion object {
         const val ACTION_COMMAND = "com.manus.agent.ACTION_COMMAND"
-        const val EXTRA_COMMAND_TEXT = "EXTRA_COMMAND_TEXT"
-        const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.ACTION_SERVICE_STATE_CHANGED"
-        const val EXTRA_STATE = "EXTRA_STATE"
-        const val EXTRA_MESSAGE = "EXTRA_MESSAGE"
+        const val EXTRA_COMMAND_TEXT = "command_text"
+        const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.SERVICE_STATE_CHANGED"
+        const val EXTRA_STATE = "state"
+        const val EXTRA_MESSAGE = "message"
     }
 
-    private lateinit var ortEnvironment: OrtEnvironment
+    private var ortEnvironment: OrtEnvironment? = null
     private var ortSession: OrtSession? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        val info = AccessibilityServiceInfo().apply {
-            eventTypes = AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or AccessibilityEvent.TYPE_VIEW_CLICKED
-            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
-            notificationTimeout = 100
-        }
-        serviceInfo = info
-
         initializeOrt()
-        sendServiceState("CONNECTED", "Service connected and ONNX ready.")
+        broadcastState("connected", "Accessibility Service connected")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // يمكن تطوير المعالجة المستقبلية للأحداث هنا
+        // يمكن إضافة مراقبة الأحداث لاحقًا
     }
 
     override fun onInterrupt() {
-        Log.d("ManusService", "AccessibilityService interrupted")
+        // يمكن إضافة منطق التوقف عند الانقطاع
     }
 
     private fun initializeOrt() {
         try {
             ortEnvironment = OrtEnvironment.getEnvironment()
             val modelFile = filesDir.resolve("phi3.onnx")
-            ortSession = ortEnvironment.createSession(modelFile.absolutePath)
-            Log.d("ManusService", "ONNX Runtime session initialized")
+            if (!modelFile.exists()) {
+                Log.e("ManusAccessibilityService", "ONNX model file not found!")
+                return
+            }
+            ortSession = ortEnvironment?.createSession(modelFile.absolutePath)
+            Log.d("ManusAccessibilityService", "ONNX Session initialized")
         } catch (e: Exception) {
-            Log.e("ManusService", "Failed to initialize ONNX", e)
+            Log.e("ManusAccessibilityService", "Error initializing ONNX Runtime", e)
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         intent?.let {
             if (it.action == ACTION_COMMAND) {
-                val commandText = it.getStringExtra(EXTRA_COMMAND_TEXT)
-                commandText?.let { cmd ->
-                    handleCommand(cmd)
+                val command = it.getStringExtra(EXTRA_COMMAND_TEXT) ?: ""
+                if (command.isNotEmpty()) {
+                    handleCommand(command)
                 }
             }
         }
@@ -66,26 +67,47 @@ class ManusAccessibilityService : AccessibilityService() {
     }
 
     private fun handleCommand(command: String) {
-        // هنا يتم تمرير الأمر إلى النموذج وتنفيذ الفعل
-        Log.d("ManusService", "Received command: $command")
-        performClickOnButton("example_button_id") // مثال
+        // هنا سيتم دمج الذكاء الاصطناعي لتحليل الأوامر
+        // حالياً مجرد سجل
+        Log.d("ManusAccessibilityService", "Command received: $command")
+        Toast.makeText(this, "Command received: $command", Toast.LENGTH_SHORT).show()
+
+        // مثال: إذا كان هناك زر باسم "settings_button"، يتم النقر عليه
+        val rootNode = rootInActiveWindow ?: return
+        val targetNode = findNodeByText(rootNode, command)
+        targetNode?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
-    private fun performClickOnButton(buttonId: String) {
-        val rootNode = rootInActiveWindow
-        rootNode?.let {
-            val nodes = it.findAccessibilityNodeInfosByViewId(buttonId)
-            if (nodes.isNotEmpty()) {
-                nodes[0].performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                sendServiceState("ACTION", "Clicked button $buttonId")
+    private fun findNodeByText(node: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
+        if (node.text?.toString()?.contains(text, ignoreCase = true) == true) {
+            return node
+        }
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let {
+                val found = findNodeByText(it, text)
+                if (found != null) return found
             }
         }
+        return null
     }
 
-    private fun sendServiceState(state: String, message: String) {
-        val intent = Intent(ACTION_SERVICE_STATE_CHANGED)
-        intent.putExtra(EXTRA_STATE, state)
-        intent.putExtra(EXTRA_MESSAGE, message)
+    private fun broadcastState(state: String, message: String) {
+        val intent = Intent(ACTION_SERVICE_STATE_CHANGED).apply {
+            putExtra(EXTRA_STATE, state)
+            putExtra(EXTRA_MESSAGE, message)
+        }
         sendBroadcast(intent)
+    }
+
+    // مثال على إجراء إيماءة لمس الشاشة
+    private fun performClick(x: Float, y: Float) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            val path = android.graphics.Path()
+            path.moveTo(x, y)
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+                .build()
+            dispatchGesture(gesture, null, null)
+        }
     }
 }
