@@ -28,6 +28,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
@@ -39,9 +40,7 @@ android {
         compose = true
     }
     composeOptions {
-        // *** هذا هو الإصلاح ***
-        // تم تحديث الإصدار ليتوافق مع Kotlin 1.9.23
-        kotlinCompilerExtensionVersion = "1.5.11" 
+        kotlinCompilerExtensionVersion = "1.5.11"
     }
     packaging {
         resources {
