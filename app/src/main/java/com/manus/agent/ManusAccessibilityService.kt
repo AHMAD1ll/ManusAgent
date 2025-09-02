@@ -4,8 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -67,12 +65,9 @@ class ManusAccessibilityService : AccessibilityService() {
     }
 
     private fun handleCommand(command: String) {
-        // هنا سيتم دمج الذكاء الاصطناعي لتحليل الأوامر
-        // حالياً مجرد سجل
         Log.d("ManusAccessibilityService", "Command received: $command")
         Toast.makeText(this, "Command received: $command", Toast.LENGTH_SHORT).show()
 
-        // مثال: إذا كان هناك زر باسم "settings_button"، يتم النقر عليه
         val rootNode = rootInActiveWindow ?: return
         val targetNode = findNodeByText(rootNode, command)
         targetNode?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
@@ -99,7 +94,6 @@ class ManusAccessibilityService : AccessibilityService() {
         sendBroadcast(intent)
     }
 
-    // مثال على إجراء إيماءة لمس الشاشة
     private fun performClick(x: Float, y: Float) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             val path = android.graphics.Path()
