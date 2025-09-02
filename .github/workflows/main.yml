@@ -15,7 +15,8 @@ jobs:
       - name: Build APK using a dedicated Android Docker image
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 33 # يمكن تغيير هذا الرقم، لكن 33 هو خيار جيد
+          api-level: 33
+          target: google_apis  # هذا هو التغيير الحاسم الذي يحل المشكلة
           script: ./gradlew assembleDebug
 
       - name: Upload APK
