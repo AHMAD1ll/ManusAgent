@@ -1,26 +1,30 @@
 package com.manus.agent
 
+// *** الإصلاح الحاسم هنا: تبسيط الاستيرادات إلى الحد الأدنى المطلوب ***
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityNodeInfo
 import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import java.io.File
 
+// تم حذف استيرادات ONNX Runtime مؤقتًا لتضييق نطاق المشكلة
+// import ai.onnxruntime.OrtEnvironment
+// import ai.onnxruntime.OrtSession
+
 class ManusAccessibilityService : AccessibilityService() {
 
     private val job = SupervisorJob()
     private val scope = CoroutineScope(Dispatchers.IO + job)
 
-    private var ortEnv: OrtEnvironment? = null
-    private var ortSession: OrtSession? = null
+    // تم تعطيل متغيرات ONNX Runtime مؤقتًا
+    // private var ortEnv: OrtEnvironment? = null
+    // private var ortSession: OrtSession? = null
     private var currentTask: String? = null
 
     companion object {
@@ -39,7 +43,8 @@ class ManusAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         broadcastState(STATE_CONNECTED)
         Toast.makeText(this, "Manus Agent Service: CONNECTED", Toast.LENGTH_SHORT).show()
-        initializeOrt()
+        // تم تعطيل استدعاء initializeOrt() مؤقتًا
+        // initializeOrt()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -73,8 +78,6 @@ class ManusAccessibilityService : AccessibilityService() {
     }
 
     private fun traverseNode(node: AccessibilityNodeInfo, builder: StringBuilder) {
-        // *** الإصلاح الأول هنا ***
-        // تحويل النص إلى String بشكل صريح قبل إضافته
         val text: String? = node.text?.toString()?.trim()
         val contentDesc: String? = node.contentDescription?.toString()?.trim()
 
@@ -93,6 +96,8 @@ class ManusAccessibilityService : AccessibilityService() {
         }
     }
 
+    // تم تعطيل دالة initializeOrt() بالكامل مؤقتًا
+    /*
     private fun initializeOrt() {
         scope.launch {
             try {
@@ -108,13 +113,14 @@ class ManusAccessibilityService : AccessibilityService() {
             }
         }
     }
+    */
 
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
         broadcastState(STATE_DISCONNECTED)
         Toast.makeText(this, "Manus Agent Service: DISCONNECTED", Toast.LENGTH_SHORT).show()
-        ortSession?.close()
+        // ortSession?.close()
         job.cancel()
         return super.onUnbind(intent)
     }
