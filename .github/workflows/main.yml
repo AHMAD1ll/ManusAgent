@@ -7,29 +7,30 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # *** الإصلاح الحاسم والنهائي هنا ***
+    # نحن نغير بيئة التشغيل من 'ubuntu-latest' إلى 'macos-latest'
+    # بيئة macOS تأتي مع أدوات بناء أندرويد مجهزة بشكل أفضل وأكثر استقرارًا.
+    runs-on: macos-latest
 
     steps:
     # 1. تنزيل الكود
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 2. إعداد بيئة Java
+    # 2. إعداد بيئة Java (لا حاجة لتحديد التوزيعة في macOS)
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
-        distribution: 'zulu'
-        # *** الإصلاح الحاسم هنا: تعطيل ذاكرة التخزين المؤقت ***
-        cache: 'gradle'
+        distribution: 'temurin' # 'temurin' تعمل بشكل ممتاز على macOS
 
     # 3. إعطاء إذن التنفيذ لـ gradlew
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
-    # 4. بناء التطبيق مع تنظيف كامل
+    # 4. بناء التطبيق
     - name: Build with Gradle
-      run: ./gradlew clean assembleDebug
+      run: ./gradlew assembleDebug
 
     # 5. رفع ملف APK
     - name: Upload APK
