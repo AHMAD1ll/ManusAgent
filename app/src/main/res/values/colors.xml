@@ -1,14 +1,20 @@
 <resources>
-    <!-- ألوان أساسية Material3 -->
-    <color name="colorPrimary">#6750A4</color>
-    <color name="colorOnPrimary">#FFFFFF</color>
+    <color name="primary">#6750A4</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#EADDFF</color>
+    <color name="onPrimaryContainer">#21005D</color>
 
-    <color name="colorSecondary">#625B71</color>
-    <color name="colorOnSecondary">#FFFFFF</color>
+    <color name="secondary">#625B71</color>
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="secondaryContainer">#E8DEF8</color>
+    <color name="onSecondaryContainer">#1D192B</color>
 
-    <color name="colorBackground">#FFFFFF</color>
-    <color name="colorOnBackground">#000000</color>
+    <color name="background">#FFFFFF</color>
+    <color name="onBackground">#1C1B1F</color>
 
-    <color name="colorSurface">#FFFFFF</color>
-    <color name="colorOnSurface">#000000</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="onSurface">#1C1B1F</color>
+    
+    <color name="error">#B3261E</color>
+    <color name="onError">#FFFFFF</color>
 </resources>
