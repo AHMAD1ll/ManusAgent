@@ -1,11 +1,7 @@
 package com.manus.agent
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.content.pm.PackageManager
+import android.content.*
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -25,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.manus.agent.ui.theme.ManusAgentTheme
+import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
 
@@ -33,9 +30,9 @@ class MainActivity : ComponentActivity() {
     private var uiState by mutableStateOf(UiState())
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) { copyModelFiles() } 
-            else { uiState = uiState.copy(statusMessage = "Permission denied. Cannot copy models.") }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) copyModelFiles()
+            else uiState = uiState.copy(statusMessage = "Permission denied. Cannot copy models.")
         }
 
     private val openSettingsLauncher =
@@ -67,7 +64,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED), RECEIVER_NOT_EXPORTED)
+        registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED))
         checkPermissionsAndServiceStatus()
     }
 
@@ -81,38 +78,29 @@ class MainActivity : ComponentActivity() {
         val isServiceEnabled = isAccessibilityServiceEnabled()
         val modelsCopied = areModelsCopied()
 
-        val newState = uiState.copy(
+        uiState = uiState.copy(
             hasStoragePermission = hasPermission,
             isAccessibilityServiceEnabled = isServiceEnabled,
-            areModelsCopied = modelsCopied
+            areModelsCopied = modelsCopied,
+            statusMessage = when {
+                !hasPermission -> "Storage permission needed to copy AI models."
+                !modelsCopied -> "Copying AI models..."
+                !isServiceEnabled -> "Accessibility Service is not enabled."
+                else -> "Ready to receive commands."
+            }
         )
-        
-        uiState = if (!hasPermission) {
-            newState.copy(statusMessage = "Storage permission needed to copy AI models.")
-        } else if (!modelsCopied) {
-            newState.copy(statusMessage = "Copying AI models...")
-            copyModelFiles()
-            newState
-        } else if (!isServiceEnabled) {
-            newState.copy(statusMessage = "Accessibility Service is not enabled.")
-        } else {
-            newState.copy(statusMessage = "Ready to receive commands.")
-        }
+
+        if (hasPermission && !modelsCopied) copyModelFiles()
     }
 
-    private fun hasStoragePermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            Environment.isExternalStorageManager()
-        } else {
-            ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-        }
-    }
+    private fun hasStoragePermission(): Boolean =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Environment.isExternalStorageManager()
+        else ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
 
     private fun requestStoragePermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                intent.addCategory("android.intent.category.DEFAULT")
                 intent.data = Uri.parse("package:$packageName")
                 openSettingsLauncher.launch(intent)
             } catch (e: Exception) {
@@ -135,60 +123,40 @@ class MainActivity : ComponentActivity() {
         startActivity(intent)
     }
 
-    private fun areModelsCopied(): Boolean {
-        val modelFile = File(filesDir, "phi3.onnx")
-        return modelFile.exists()
-    }
+    private fun areModelsCopied(): Boolean = File(filesDir, "phi3.onnx").exists()
 
     private fun copyModelFiles() {
         val modelNames = listOf("phi3.onnx", "phi3.onnx.data", "tokenizer.json")
         val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
 
-        var allFilesFound = true
-        for (modelName in modelNames) {
-            val sourceFile = File(downloadDir, modelName)
-            if (!sourceFile.exists()) {
-                Log.e("FileCopy", "Source file not found: ${sourceFile.absolutePath}")
-                Toast.makeText(this, "Error: $modelName not found in Download folder.", Toast.LENGTH_LONG).show()
-                allFilesFound = false
-                break
+        CoroutineScope(Dispatchers.IO).launch {
+            var allFilesFound = true
+            for (modelName in modelNames) {
+                val sourceFile = File(downloadDir, modelName)
+                if (!sourceFile.exists()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@MainActivity, "Error: $modelName not found in Download folder.", Toast.LENGTH_LONG).show()
+                        uiState = uiState.copy(statusMessage = "Please place model files in Download folder.")
+                    }
+                    allFilesFound = false
+                    break
+                }
             }
-        }
 
-        if (allFilesFound) {
-            Thread {
-                var success = true
-                try {
-                    for (modelName in modelNames) {
-                        val sourceFile = File(downloadDir, modelName)
-                        val destFile = File(filesDir, modelName)
-                        if (!destFile.exists() || destFile.length() != sourceFile.length()) {
-                            Log.d("FileCopy", "Copying ${sourceFile.absolutePath} to ${destFile.absolutePath}")
-                            sourceFile.inputStream().use { input ->
-                                FileOutputStream(destFile).use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                        } else {
-                            Log.d("FileCopy", "File ${destFile.name} already exists. Skipping.")
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("FileCopy", "Error copying files", e)
-                    success = false
-                }
-                runOnUiThread {
-                    if (success) {
-                        Toast.makeText(this, "AI Models copied successfully!", Toast.LENGTH_SHORT).show()
-                        uiState = uiState.copy(areModelsCopied = true)
-                        checkPermissionsAndServiceStatus()
-                    } else {
-                        Toast.makeText(this, "Failed to copy AI models.", Toast.LENGTH_SHORT).show()
+            if (allFilesFound) {
+                for (modelName in modelNames) {
+                    val sourceFile = File(downloadDir, modelName)
+                    val destFile = File(filesDir, modelName)
+                    if (!destFile.exists() || destFile.length() != sourceFile.length()) {
+                        sourceFile.copyTo(destFile, overwrite = true)
                     }
                 }
-            }.start()
-        } else {
-            uiState = uiState.copy(statusMessage = "Please place model files in Download folder.")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "AI Models copied successfully!", Toast.LENGTH_SHORT).show()
+                    uiState = uiState.copy(areModelsCopied = true)
+                    checkPermissionsAndServiceStatus()
+                }
+            }
         }
     }
 }
@@ -210,34 +178,36 @@ fun MainScreen(uiState: UiState, onGrantPermissionClick: () -> Unit, onEnableSer
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Manus Agent", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(text = uiState.statusMessage, style = MaterialTheme.typography.bodyLarge)
-        Spacer(modifier = Modifier.height(32.dp))
+        Text("Manus Agent", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(uiState.statusMessage, style = MaterialTheme.typography.bodyLarge)
+        Spacer(Modifier.height(32.dp))
 
-        if (!uiState.hasStoragePermission) {
-            Button(onClick = onGrantPermissionClick) { Text("1. Grant File Permission") }
-        } else if (!uiState.areModelsCopied) {
-            CircularProgressIndicator()
-            Text("Copying models...")
-        } else if (!uiState.isAccessibilityServiceEnabled) {
-            Button(onClick = onEnableServiceClick) { Text("2. Enable Accessibility Service") }
-        } else {
-            OutlinedTextField(
-                value = commandText,
-                onValueChange = { commandText = it },
-                label = { Text("Enter your command here") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = {
-                val intent = Intent(context, ManusAccessibilityService::class.java).apply {
-                    action = ManusAccessibilityService.ACTION_COMMAND
-                    putExtra(ManusAccessibilityService.EXTRA_COMMAND_TEXT, commandText)
-                }
-                context.startService(intent)
-                Toast.makeText(context, "Command sent!", Toast.LENGTH_SHORT).show()
-            }) { Text("Start Task") }
+        when {
+            !uiState.hasStoragePermission -> Button(onClick = onGrantPermissionClick) { Text("1. Grant File Permission") }
+            !uiState.areModelsCopied -> {
+                CircularProgressIndicator()
+                Spacer(Modifier.height(8.dp))
+                Text("Copying models...")
+            }
+            !uiState.isAccessibilityServiceEnabled -> Button(onClick = onEnableServiceClick) { Text("2. Enable Accessibility Service") }
+            else -> {
+                OutlinedTextField(
+                    value = commandText,
+                    onValueChange = { commandText = it },
+                    label = { Text("Enter your command here") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(onClick = {
+                    val intent = Intent(context, ManusAccessibilityService::class.java).apply {
+                        action = ManusAccessibilityService.ACTION_COMMAND
+                        putExtra(ManusAccessibilityService.EXTRA_COMMAND_TEXT, commandText)
+                    }
+                    context.startService(intent)
+                    Toast.makeText(context, "Command sent!", Toast.LENGTH_SHORT).show()
+                }) { Text("Start Task") }
+            }
         }
     }
 }
