@@ -1,8 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- الثيم الأساسي للتطبيق -->
-    <style name="Theme.ManusAgent" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- شفاف للـ Status bar -->
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+    <!-- Light theme -->
+    <style name="Theme.ManusAgent" parent="Theme.Material3.DayNight">
+        <!-- Customize your colors here if needed -->
+        <item name="android:windowBackground">@color/background</item>
     </style>
 </resources>
