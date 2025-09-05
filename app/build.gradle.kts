@@ -20,11 +20,13 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10" // تم التحديث إلى 1.5.10
+        kotlinCompilerExtensionVersion = "1.5.10"
     }
 
     kotlinOptions {
         jvmTarget = "17"
+        // إضافة هذا الخيار لتجاوز تحقق التوافق
+        freeCompilerArgs += listOf("-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true")
     }
 
     compileOptions {
