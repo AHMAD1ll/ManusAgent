@@ -25,8 +25,7 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
-        // إضافة هذا الخيار لتجاوز تحقق التوافق
-        freeCompilerArgs += listOf("-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true")
+        freeCompilerArgs += listOf("-P", "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=1.9.23")
     }
 
     compileOptions {
@@ -45,6 +44,7 @@ dependencies {
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.compose.ui:ui:1.6.0")
     implementation("androidx.compose.material:material:1.6.0")
+    implementation("androidx.compose.material3:material3:1.2.0") // أضف هذا السطر
     implementation("androidx.compose.ui:ui-tooling-preview:1.6.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
