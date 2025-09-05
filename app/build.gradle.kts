@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.manusagent"
+    namespace = "com.manus.agent" // نفس يلي كنا بدنا نستخدمه
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.manusagent"
+        applicationId = "com.manus.agent"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
