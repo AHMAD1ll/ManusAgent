@@ -26,6 +26,17 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    // إضافة هذا القسم لحل المشكلة
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// إضافة هذا القسم خارج android {}
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
