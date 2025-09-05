@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "com.manus.agent"
-    compileSdk = 33  // خفضنا من 34 إلى 33
+    compileSdk = 34  // خفضنا من 34 إلى 33
 
     defaultConfig {
         applicationId = "com.manus.agent"
         minSdk = 26
-        targetSdk = 33  // خفضنا من 34 إلى 33
+        targetSdk = 34  // خفضنا من 34 إلى 33
         versionCode = 1
         versionName = "1.0"
     }
