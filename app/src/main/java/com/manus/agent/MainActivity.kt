@@ -2,6 +2,7 @@ package com.manus.agent
 
 import android.Manifest
 import android.content.*
+import android.content.pm.PackageManager  // أضفت هذا السطر
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
