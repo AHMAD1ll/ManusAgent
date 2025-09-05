@@ -8,7 +8,7 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
-import com.microsoft.onnxruntime.*
+import java.io.File
 
 class ManusAccessibilityService : AccessibilityService() {
 
@@ -20,12 +20,9 @@ class ManusAccessibilityService : AccessibilityService() {
         const val EXTRA_MESSAGE = "message"
     }
 
-    private var ortEnvironment: OrtEnvironment? = null
-    private var ortSession: OrtSession? = null
-
     override fun onServiceConnected() {
         super.onServiceConnected()
-        initializeOrt()
+        copyModelIfExists() // نسخ الملفات إذا وجدت
         broadcastState("connected", "Accessibility Service connected")
     }
 
@@ -33,18 +30,24 @@ class ManusAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() { }
 
-    private fun initializeOrt() {
-        try {
-            ortEnvironment = OrtEnvironment.getEnvironment()
-            val modelFile = filesDir.resolve("phi3.onnx")
-            if (!modelFile.exists()) {
-                Log.e("ManusAccessibilityService", "ONNX model file not found!")
-                return
+    private fun copyModelIfExists() {
+        val filesToCopy = listOf("phi3.onnx", "phi3.onnx.data", "tokenizer.json")
+        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(
+            android.os.Environment.DIRECTORY_DOWNLOADS
+        )
+
+        for (fileName in filesToCopy) {
+            val sourceFile = File(downloadsDir, fileName)
+            val destFile = File(filesDir, fileName)
+            
+            if (destFile.exists()) continue // إذا الملف موجود، skip
+            
+            if (sourceFile.exists()) {
+                sourceFile.copyTo(destFile) // انسخ إذا المصدر موجود
+                Log.d("Manus", "تم نسخ: $fileName")
+            } else {
+                Log.w("Manus", "ملف غير موجود: $fileName")
             }
-            ortSession = ortEnvironment?.createSession(modelFile.absolutePath)
-            Log.d("ManusAccessibilityService", "ONNX Session initialized")
-        } catch (e: Exception) {
-            Log.e("ManusAccessibilityService", "Error initializing ONNX Runtime", e)
         }
     }
 
