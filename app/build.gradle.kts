@@ -45,4 +45,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.0")
     
     implementation("androidx.compose.runtime:runtime:1.5.4")
-    implementation("androidx.compose.ui:ui-tool
+    implementation("androidx.compose.ui:ui-tooling:1.5.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    implementation("androidx.activity:activity-ktx:1.8.0")
+}
