@@ -1,7 +1,14 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.ManusAgent" parent="Theme.Material3.DayNight">
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorPrimaryVariant">@color/purple_700</item>
-        <item name="colorOnPrimary">@color/white</item>
+    <!--
+        Base application theme for API 21+.
+        This theme is the starting point for your app, and it can be customized
+        to fit your brand's color palette, typography, and other attributes.
+    -->
+    <style name="Theme.ManusAgent" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Primary brand color. -->
+        <item name="android:colorPrimary">@color/purple_500</item>
+        <item name="android:colorPrimaryDark">@color/purple_700</item>
+        <item name="android:colorAccent">@color/teal_200</item>
+        <!-- ... other attributes -->
     </style>
 </resources>
