@@ -2,7 +2,7 @@ package com.manus.agent
 
 import android.Manifest
 import android.content.*
-import android.content.pm.PackageManager  // أضفت هذا السطر
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -24,7 +24,6 @@ import androidx.core.content.ContextCompat
 import com.manus.agent.ui.theme.ManusAgentTheme
 import kotlinx.coroutines.*
 import java.io.File
-import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
 
@@ -65,7 +64,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED))
+        // --- هذا هو السطر الذي تم إصلاحه ---
+        // تمت إضافة العلم RECEIVER_NOT_EXPORTED ليتوافق مع متطلبات Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED))
+        }
+        // ------------------------------------
         checkPermissionsAndServiceStatus()
     }
 
