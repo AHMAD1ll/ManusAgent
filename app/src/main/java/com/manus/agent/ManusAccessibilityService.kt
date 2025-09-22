@@ -8,9 +8,22 @@ import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
+import ai.onnxruntime.OnnxTensor
+import ai.onnxruntime.OrtEnvironment
+import ai.onnxruntime.OrtSession
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
+import java.util.Collections
 
 class ManusAccessibilityService : AccessibilityService() {
+
+    // --- متغيرات جديدة للذكاء الاصطناعي ---
+    private var ortEnv: OrtEnvironment? = null
+    private var session: OrtSession? = null
+    private val scope = CoroutineScope(Dispatchers.IO)
+    // ------------------------------------
 
     companion object {
         const val ACTION_COMMAND = "com.manus.agent.ACTION_COMMAND"
@@ -18,37 +31,54 @@ class ManusAccessibilityService : AccessibilityService() {
         const val ACTION_SERVICE_STATE_CHANGED = "com.manus.agent.SERVICE_STATE_CHANGED"
         const val EXTRA_STATE = "state"
         const val EXTRA_MESSAGE = "message"
+        private const val TAG = "ManusAccessibilityService"
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        copyModelIfExists() // نسخ الملفات إذا وجدت
+        Log.d(TAG, "Service connected.")
         broadcastState("connected", "Accessibility Service connected")
+        
+        // بدء تهيئة النموذج في الخلفية
+        scope.launch {
+            initializeOrt()
+        }
+    }
+
+    private fun initializeOrt() {
+        try {
+            Log.d(TAG, "Initializing ONNX Runtime...")
+            val modelFile = File(filesDir, "phi3.onnx")
+            if (!modelFile.exists()) {
+                Log.e(TAG, "Model file not found at: ${modelFile.absolutePath}")
+                broadcastState("error", "Model file not found.")
+                return
+            }
+
+            ortEnv = OrtEnvironment.getEnvironment()
+            val sessionOptions = OrtSession.SessionOptions()
+            session = ortEnv?.createSession(modelFile.absolutePath, sessionOptions)
+
+            Log.d(TAG, "ONNX session created successfully.")
+            broadcastState("ready", "AI Model loaded. Ready for commands.")
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing ONNX Runtime", e)
+            broadcastState("error", "Failed to load AI model.")
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) { }
 
-    override fun onInterrupt() { }
+    override fun onInterrupt() {
+        Log.d(TAG, "Service interrupted.")
+    }
 
-    private fun copyModelIfExists() {
-        val filesToCopy = listOf("phi3.onnx", "phi3.onnx.data", "tokenizer.json")
-        val downloadsDir = android.os.Environment.getExternalStoragePublicDirectory(
-            android.os.Environment.DIRECTORY_DOWNLOADS
-        )
-
-        for (fileName in filesToCopy) {
-            val sourceFile = File(downloadsDir, fileName)
-            val destFile = File(filesDir, fileName)
-            
-            if (destFile.exists()) continue // إذا الملف موجود، skip
-            
-            if (sourceFile.exists()) {
-                sourceFile.copyTo(destFile) // انسخ إذا المصدر موجود
-                Log.d("Manus", "تم نسخ: $fileName")
-            } else {
-                Log.w("Manus", "ملف غير موجود: $fileName")
-            }
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        session?.close()
+        ortEnv?.close()
+        Log.d(TAG, "Service destroyed, ONNX session closed.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -64,8 +94,18 @@ class ManusAccessibilityService : AccessibilityService() {
     }
 
     private fun handleCommand(command: String) {
-        Log.d("ManusAccessibilityService", "Command received: $command")
-        Toast.makeText(this, "Command received: $command", Toast.LENGTH_SHORT).show()
+        Log.d(TAG, "Command received: $command")
+        
+        if (session == null) {
+            Toast.makeText(this, "AI Model not ready yet.", Toast.LENGTH_SHORT).show()
+            Log.w(TAG, "Session is null, cannot process command.")
+            return
+        }
+
+        // TODO: لاحقاً سنقوم بتحليل الشاشة هنا وإرسالها للنموذج
+        Toast.makeText(this, "Command received: $command. AI processing not implemented yet.", Toast.LENGTH_LONG).show()
+
+        // المنطق القديم للبحث بالنص (كمثال مؤقت)
         val rootNode = rootInActiveWindow ?: return
         val targetNode = findNodeByText(rootNode, command)
         targetNode?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
@@ -88,16 +128,5 @@ class ManusAccessibilityService : AccessibilityService() {
             putExtra(EXTRA_MESSAGE, message)
         }
         sendBroadcast(intent)
-    }
-
-    private fun performClick(x: Float, y: Float) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val path = android.graphics.Path()
-            path.moveTo(x, y)
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
-                .build()
-            dispatchGesture(gesture, null, null)
-        }
     }
 }
