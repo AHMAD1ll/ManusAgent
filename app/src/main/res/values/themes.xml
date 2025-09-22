@@ -1,14 +1,13 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!--
-        Base application theme for API 21+.
-        This theme is the starting point for your app, and it can be customized
-        to fit your brand's color palette, typography, and other attributes.
-    -->
+    <!-- Theme for the splash screen -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@android:color/black</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="postSplashScreenTheme">@style/Theme.ManusAgent</item>
+    </style>
+
+    <!-- Base application theme. -->
     <style name="Theme.ManusAgent" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- Primary brand color. -->
-        <item name="android:colorPrimary">@color/purple_500</item>
-        <item name="android:colorPrimaryDark">@color/purple_700</item>
-        <item name="android:colorAccent">@color/teal_200</item>
-        <!-- ... other attributes -->
+        <!-- This theme is applied after the splash screen. -->
     </style>
 </resources>
