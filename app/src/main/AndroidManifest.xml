@@ -2,15 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- أذونات التخزين ستتم مراجعتها لاحقاً لتتوافق مع Android 13+ -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:ignore="ScopedStorage" />
-
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- For Android 13 (API 33) and above, for foreground services -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
 
     <application
         android:allowBackup="true"
@@ -27,7 +23,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ManusAgent">
+            android:theme="@style/Theme.App.Starting"> <!-- تم التحديث هنا -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -41,7 +37,6 @@
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
-
             <meta-data
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
