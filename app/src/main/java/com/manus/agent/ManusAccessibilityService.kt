@@ -1,29 +1,23 @@
 package com.manus.agent
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
 import android.content.Intent
-import android.os.Build
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.Toast
-import ai.onnxruntime.OnnxTensor
 import ai.onnxruntime.OrtEnvironment
 import ai.onnxruntime.OrtSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import java.util.Collections
 
 class ManusAccessibilityService : AccessibilityService() {
 
-    // --- متغيرات جديدة للذكاء الاصطناعي ---
     private var ortEnv: OrtEnvironment? = null
     private var session: OrtSession? = null
     private val scope = CoroutineScope(Dispatchers.IO)
-    // ------------------------------------
 
     companion object {
         const val ACTION_COMMAND = "com.manus.agent.ACTION_COMMAND"
@@ -36,10 +30,9 @@ class ManusAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d(TAG, "Service connected.")
-        broadcastState("connected", "Accessibility Service connected")
+        Log.d(TAG, "Service connected. Initializing AI model...")
+        broadcastState("initializing", "Initializing AI model...")
         
-        // بدء تهيئة النموذج في الخلفية
         scope.launch {
             initializeOrt()
         }
@@ -47,38 +40,38 @@ class ManusAccessibilityService : AccessibilityService() {
 
     private fun initializeOrt() {
         try {
-            Log.d(TAG, "Initializing ONNX Runtime...")
-            val modelFile = File(filesDir, "phi3.onnx")
-            if (!modelFile.exists()) {
-                Log.e(TAG, "Model file not found at: ${modelFile.absolutePath}")
-                broadcastState("error", "Model file not found.")
+            val modelPath = File(filesDir, "phi3.onnx").absolutePath
+            val modelFile = File(modelPath)
+
+            if (!modelFile.exists() || modelFile.length() == 0L) {
+                Log.e(TAG, "Model file is missing or empty at path: $modelPath")
+                broadcastState("error", "Model file missing or empty. Check app storage.")
                 return
             }
+            Log.d(TAG, "Model file found at: $modelPath, size: ${modelFile.length()} bytes.")
 
+            Log.d(TAG, "Creating ONNX Runtime environment...")
             ortEnv = OrtEnvironment.getEnvironment()
             val sessionOptions = OrtSession.SessionOptions()
-            session = ortEnv?.createSession(modelFile.absolutePath, sessionOptions)
+            
+            Log.d(TAG, "Creating ONNX session from model...")
+            session = ortEnv?.createSession(modelPath, sessionOptions)
 
-            Log.d(TAG, "ONNX session created successfully.")
-            broadcastState("ready", "AI Model loaded. Ready for commands.")
+            if (session != null) {
+                Log.d(TAG, "ONNX session created successfully. Model is ready.")
+                broadcastState("ready", "AI Model loaded. Ready for commands.")
+            } else {
+                Log.e(TAG, "ONNX session creation returned null.")
+                broadcastState("error", "Failed to create ONNX session (returned null).")
+            }
 
         } catch (e: Exception) {
-            Log.e(TAG, "Error initializing ONNX Runtime", e)
-            broadcastState("error", "Failed to load AI model.")
+            // --- هذا هو الجزء الأهم ---
+            Log.e(TAG, "CRITICAL: Error initializing ONNX Runtime", e)
+            // أرسل رسالة الخطأ الفعلية إلى الواجهة
+            broadcastState("error", "Model Load Error: ${e.message}")
+            // -------------------------
         }
-    }
-
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) { }
-
-    override fun onInterrupt() {
-        Log.d(TAG, "Service interrupted.")
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        session?.close()
-        ortEnv?.close()
-        Log.d(TAG, "Service destroyed, ONNX session closed.")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -102,15 +95,10 @@ class ManusAccessibilityService : AccessibilityService() {
             return
         }
 
-        // TODO: لاحقاً سنقوم بتحليل الشاشة هنا وإرسالها للنموذج
         Toast.makeText(this, "Command received: $command. AI processing not implemented yet.", Toast.LENGTH_LONG).show()
-
-        // المنطق القديم للبحث بالنص (كمثال مؤقت)
-        val rootNode = rootInActiveWindow ?: return
-        val targetNode = findNodeByText(rootNode, command)
-        targetNode?.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
+    // ... باقي الدوال تبقى كما هي ...
     private fun findNodeByText(node: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
         if (node.text?.toString()?.contains(text, ignoreCase = true) == true) return node
         for (i in 0 until node.childCount) {
@@ -126,7 +114,25 @@ class ManusAccessibilityService : AccessibilityService() {
         val intent = Intent(ACTION_SERVICE_STATE_CHANGED).apply {
             putExtra(EXTRA_STATE, state)
             putExtra(EXTRA_MESSAGE, message)
+            `package` = packageName
         }
         sendBroadcast(intent)
+    }
+    
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) { }
+
+    override fun onInterrupt() {
+        Log.d(TAG, "Service interrupted.")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            session?.close()
+            ortEnv?.close()
+            Log.d(TAG, "Service destroyed, ONNX session closed.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error closing ONNX session on destroy", e)
+        }
     }
 }
