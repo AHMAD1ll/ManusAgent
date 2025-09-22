@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen // استيراد جديد
 import com.manus.agent.ui.theme.ManusAgentTheme
 import kotlinx.coroutines.*
 import java.io.File
@@ -50,6 +51,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // تفعيل شاشة البداية قبل كل شيء
+        installSplashScreen() // --- هذا هو السطر الجديد ---
+
         super.onCreate(savedInstanceState)
         setContent {
             ManusAgentTheme {
@@ -64,14 +68,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // --- هذا هو السطر الذي تم إصلاحه ---
-        // تمت إضافة العلم RECEIVER_NOT_EXPORTED ليتوافق مع متطلبات Android 12+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(serviceStateReceiver, IntentFilter(ManusAccessibilityService.ACTION_SERVICE_STATE_CHANGED))
         }
-        // ------------------------------------
         checkPermissionsAndServiceStatus()
     }
 
@@ -80,6 +81,8 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(serviceStateReceiver)
     }
 
+    // ... باقي الكود يبقى كما هو ...
+    // (لقد حذفته من هنا للاختصار، لكن لا تحذفه من ملفك)
     private fun checkPermissionsAndServiceStatus() {
         val hasPermission = hasStoragePermission()
         val isServiceEnabled = isAccessibilityServiceEnabled()
