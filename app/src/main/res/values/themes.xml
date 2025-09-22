@@ -1,13 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Theme for the splash screen -->
-    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@android:color/black</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
-        <item name="postSplashScreenTheme">@style/Theme.ManusAgent</item>
-    </style>
-
     <!-- Base application theme. -->
     <style name="Theme.ManusAgent" parent="android:Theme.Material.Light.NoActionBar">
-        <!-- This theme is applied after the splash screen. -->
     </style>
 </resources>
