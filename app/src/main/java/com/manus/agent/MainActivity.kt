@@ -21,10 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen // استيراد جديد
 import com.manus.agent.ui.theme.ManusAgentTheme
 import kotlinx.coroutines.*
 import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
 
@@ -51,9 +51,6 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // تفعيل شاشة البداية قبل كل شيء
-        installSplashScreen() // --- هذا هو السطر الجديد ---
-
         super.onCreate(savedInstanceState)
         setContent {
             ManusAgentTheme {
@@ -81,8 +78,6 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(serviceStateReceiver)
     }
 
-    // ... باقي الكود يبقى كما هو ...
-    // (لقد حذفته من هنا للاختصار، لكن لا تحذفه من ملفك)
     private fun checkPermissionsAndServiceStatus() {
         val hasPermission = hasStoragePermission()
         val isServiceEnabled = isAccessibilityServiceEnabled()
