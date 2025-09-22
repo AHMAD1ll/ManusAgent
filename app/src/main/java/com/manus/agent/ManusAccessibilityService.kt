@@ -52,9 +52,15 @@ class ManusAccessibilityService : AccessibilityService() {
 
             Log.d(TAG, "Creating ONNX Runtime environment...")
             ortEnv = OrtEnvironment.getEnvironment()
-            val sessionOptions = OrtSession.SessionOptions()
             
-            Log.d(TAG, "Creating ONNX session from model...")
+            // --- هذا هو الحل الصحيح والوحيد المطلوب ---
+            val sessionOptions = OrtSession.SessionOptions().apply {
+                setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT)
+                setMemoryPatternOptimization(true)
+            }
+            // ------------------------------------------
+            
+            Log.d(TAG, "Creating ONNX session with memory optimization...")
             session = ortEnv?.createSession(modelPath, sessionOptions)
 
             if (session != null) {
@@ -66,11 +72,8 @@ class ManusAccessibilityService : AccessibilityService() {
             }
 
         } catch (e: Exception) {
-            // --- هذا هو الجزء الأهم ---
             Log.e(TAG, "CRITICAL: Error initializing ONNX Runtime", e)
-            // أرسل رسالة الخطأ الفعلية إلى الواجهة
             broadcastState("error", "Model Load Error: ${e.message}")
-            // -------------------------
         }
     }
 
@@ -98,7 +101,6 @@ class ManusAccessibilityService : AccessibilityService() {
         Toast.makeText(this, "Command received: $command. AI processing not implemented yet.", Toast.LENGTH_LONG).show()
     }
 
-    // ... باقي الدوال تبقى كما هي ...
     private fun findNodeByText(node: AccessibilityNodeInfo, text: String): AccessibilityNodeInfo? {
         if (node.text?.toString()?.contains(text, ignoreCase = true) == true) return node
         for (i in 0 until node.childCount) {
