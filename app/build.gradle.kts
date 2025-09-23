@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    // ... نفس إعدادات android ...
     namespace = "com.manus.agent"
     compileSdk = 34
 
@@ -40,10 +41,14 @@ android {
 }
 
 dependencies {
+    // --- تبعية جديدة للـ Tokenizer ---
+    implementation("com.knuddels:jtokkit:0.7.0")
+    // ------------------------------------
+
     // ONNX Runtime
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
 
-    // AndroidX & Material
+    // ... باقي التبعيات تبقى كما هي ...
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
